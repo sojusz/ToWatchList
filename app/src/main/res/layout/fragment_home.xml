@@ -23,7 +23,7 @@
             android:textSize="20sp"
             android:textStyle="bold"/>
 
-        <Switch
+        <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/switch_dark_mode"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -90,15 +90,28 @@
             <!-- Rok i Aktor -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="horizontal">
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:layout_marginEnd="4dp" android:layout_margin="4dp">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_year"
-                        android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:hint="Rok (np. 2023)" android:inputType="number"/>
-                </com.google.android.material.textfield.TextInputLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_margin="4dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rok:"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:layout_marginStart="4dp"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_year"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/spinner_background"
+                        android:padding="8dp"/>
+                </LinearLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"

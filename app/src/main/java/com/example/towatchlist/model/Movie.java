@@ -1,5 +1,6 @@
 package com.example.towatchlist.model;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import com.google.gson.annotations.SerializedName;
@@ -8,6 +9,7 @@ import com.google.gson.annotations.SerializedName;
 public class Movie {
 
     @PrimaryKey
+    @NonNull
     @SerializedName("imdbID")
     private String imdbID;
 
@@ -41,8 +43,9 @@ public class Movie {
     private String streamingPlatforms = "";
 
     // Gettery i settery
+    @NonNull
     public String getImdbID() { return imdbID; }
-    public void setImdbID(String imdbID) { this.imdbID = imdbID; }
+    public void setImdbID(@NonNull String imdbID) { this.imdbID = imdbID; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

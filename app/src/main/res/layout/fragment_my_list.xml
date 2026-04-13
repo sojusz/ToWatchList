@@ -19,7 +19,7 @@
         android:id="@+id/tab_layout_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"/>
+        android:background="?attr/colorPrimary" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_my_list"
