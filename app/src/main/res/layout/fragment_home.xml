@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface">
+
+    <!-- Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="ToWatchList"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"/>
+
+        <Switch
+            android:id="@+id/switch_dark_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🌙"
+            android:textColor="@color/white"/>
+    </LinearLayout>
+
+    <!-- Wyszukiwarka -->
+    <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="🔍 Szukaj filmów i seriali..."
+            android:imeOptions="actionSearch"
+            android:inputType="text"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Filtry -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <!-- Typ -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Typ:" android:textStyle="bold" android:textColor="?attr/colorPrimary"
+                android:layout_marginStart="4dp"/>
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content">
+                <LinearLayout android:id="@+id/ll_type_filters" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:layout_marginBottom="4dp"/>
+            </HorizontalScrollView>
+
+            <!-- Gatunki -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Gatunek:" android:textStyle="bold" android:textColor="?attr/colorPrimary"
+                android:layout_marginStart="4dp" android:layout_marginTop="4dp"/>
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content">
+                <LinearLayout android:id="@+id/ll_genre_filters" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:layout_marginBottom="4dp"/>
+            </HorizontalScrollView>
+
+            <!-- Platforma -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Platforma:" android:textStyle="bold" android:textColor="?attr/colorPrimary"
+                android:layout_marginStart="4dp" android:layout_marginTop="4dp"/>
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content">
+                <LinearLayout android:id="@+id/ll_platform_filters" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:orientation="horizontal"
+                    android:layout_marginBottom="4dp"/>
+            </HorizontalScrollView>
+
+            <!-- Rok i Aktor -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_marginEnd="4dp" android:layout_margin="4dp">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_year"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:hint="Rok (np. 2023)" android:inputType="number"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1" android:layout_margin="4dp">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_actor"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:hint="Aktor (np. Pitt)" android:inputType="text"/>
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <!-- Sortowanie -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_margin="4dp">
+                <Button android:id="@+id/btn_sort_best"
+                    android:layout_width="0dp" android:layout_height="36dp"
+                    android:layout_weight="1" android:text="⬆ Najlepsze"
+                    android:backgroundTint="@color/navy"
+                    android:textColor="@color/white" android:textSize="12sp"
+                    android:layout_marginEnd="4dp"/>
+                <Button android:id="@+id/btn_sort_worst"
+                    android:layout_width="0dp" android:layout_height="36dp"
+                    android:layout_weight="1" android:text="⬇ Najgorsze"
+                    android:backgroundTint="@color/navy_light"
+                    android:textColor="@color/white" android:textSize="12sp"/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Lista filmów -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_movies"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="4dp"/>
+
+</LinearLayout>
