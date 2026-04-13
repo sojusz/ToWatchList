@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ToWatchList</string>
+    <string name="tab_home">Odkrywaj</string>
+    <string name="tab_new">Nowości</string>
+    <string name="tab_mylist">Moja Lista</string>
 </resources>

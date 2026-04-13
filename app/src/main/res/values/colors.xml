@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Light theme -->
+    <color name="white">#FFFFFF</color>
+    <color name="navy">#1A237E</color>
+    <color name="navy_light">#3949AB</color>
+    <color name="blue_accent">#2979FF</color>
+    <color name="background_light">#F0F4FF</color>
+    <color name="card_light">#FFFFFF</color>
+    <color name="text_primary_light">#1A237E</color>
+    <color name="text_secondary_light">#5C6BC0</color>
+
+    <!-- Dark theme -->
+    <color name="black_deep">#0A0A0F</color>
+    <color name="dark_surface">#12121C</color>
+    <color name="electric_blue">#00B0FF</color>
+    <color name="electric_blue_dark">#0081CB</color>
+    <color name="card_dark">#1A1A2E</color>
+    <color name="text_primary_dark">#E8F4FD</color>
+    <color name="text_secondary_dark">#00B0FF</color>
 </resources>
