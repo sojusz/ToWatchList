@@ -17,6 +17,7 @@ import com.example.towatchlist.api.RetrofitClient;
 import com.example.towatchlist.model.Movie;
 import com.example.towatchlist.model.WatchmodeSource;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -28,6 +29,8 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     private Context context;
     private OnMovieActionListener listener;
     private int expandedPosition = -1;
+
+    private HashMap<String, String> platformsCache = new HashMap<>();
 
     public interface OnMovieActionListener {
         void onAddToList(Movie movie);
@@ -54,15 +57,23 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
 
     @Override
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
-        Movie movie = movies.get(position);
-        boolean isExpanded = position == expandedPosition;
+        // 1. Prawidłowe pobranie pozycji i obiektu
+        int currentPosition = holder.getAdapterPosition();
+        Movie movie = movies.get(currentPosition);
+        boolean isExpanded = currentPosition == expandedPosition;
 
         // Collapsed view
         holder.txtTitle.setText(movie.getTitle());
-        Glide.with(context)
-                .load(movie.getPosterUrl())
-                .placeholder(R.drawable.ic_launcher_background)
-                .into(holder.imgPoster);
+        String posterUrl = movie.getPosterUrl();
+        if (posterUrl != null && !posterUrl.equals("N/A") && posterUrl.startsWith("http")) {
+            Glide.with(context)
+                    .load(posterUrl)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .into(holder.imgPoster);
+        } else {
+            holder.imgPoster.setImageResource(android.R.drawable.ic_menu_gallery);
+        }
 
         // Expanded view
         holder.txtTitleBig.setText(movie.getTitle());
@@ -73,30 +84,37 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
 
         holder.txtPlot.setText(movie.getPlot() != null ? movie.getPlot() : "Brak opisu");
 
-        Glide.with(context)
-                .load(movie.getPosterUrl())
-                .placeholder(R.drawable.ic_launcher_background)
-                .into(holder.imgPosterBig);
+        if (posterUrl != null && !posterUrl.equals("N/A") && posterUrl.startsWith("http")) {
+            Glide.with(context)
+                    .load(posterUrl)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .into(holder.imgPosterBig);
+        } else {
+            holder.imgPosterBig.setImageResource(android.R.drawable.ic_menu_gallery);
+        }
 
-        // Toggle expanded
+        // Toggle expanded visibility
         holder.layoutCollapsed.setVisibility(isExpanded ? View.GONE : View.VISIBLE);
         holder.layoutExpanded.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
 
-        ViewGroup.LayoutParams params = holder.itemView.getLayoutParams();
-        // Animacja
+        // 2. Obsługa kliknięcia (używamy currentPosition)
         holder.itemView.setOnClickListener(v -> {
+            int pos = holder.getAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION) return;
+
             int prev = expandedPosition;
             if (isExpanded) {
                 expandedPosition = -1;
-                notifyItemChanged(position);
+                notifyItemChanged(pos);
             } else {
-                expandedPosition = position;
+                expandedPosition = pos;
                 if (prev != -1) notifyItemChanged(prev);
-                notifyItemChanged(position);
+                notifyItemChanged(pos);
 
                 // Załaduj szczegóły jeśli brak
                 if (movie.getPlot() == null || movie.getPlot().isEmpty()) {
-                    loadMovieDetails(movie, holder, position);
+                    loadMovieDetails(movie, holder, pos);
                 }
                 loadPlatforms(movie, holder);
             }
@@ -104,6 +122,52 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
 
         holder.btnAddToList.setOnClickListener(v -> listener.onAddToList(movie));
         holder.btnMarkWatched.setOnClickListener(v -> listener.onMarkWatched(movie));
+    }
+
+    private void loadPlatforms(Movie movie, MovieViewHolder holder) {
+        if (movie.getImdbID() == null) return;
+
+        if (platformsCache.containsKey(movie.getImdbID())) {
+            holder.txtPlatforms.setText(platformsCache.get(movie.getImdbID()));
+            return;
+        }
+
+        holder.txtPlatforms.setText("📺 Ładowanie platform...");
+
+        RetrofitClient.getWatchmodeService().getSources(
+                movie.getImdbID(), Constants.WATCHMODE_API_KEY
+        ).enqueue(new Callback<List<WatchmodeSource>>() {
+            @Override
+            public void onResponse(Call<List<WatchmodeSource>> call, Response<List<WatchmodeSource>> response) {
+                String text;
+                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    StringBuilder sb = new StringBuilder("📺 ");
+                    List<String> names = new ArrayList<>();
+                    for (WatchmodeSource src : response.body()) {
+                        if (!names.contains(src.getName())) {
+                            names.add(src.getName());
+                        }
+                    }
+                    // 3. Bezpieczne łączenie tekstów (zamiast String.join)
+                    for (int i = 0; i < names.size(); i++) {
+                        sb.append(names.get(i));
+                        if (i < names.size() - 1) sb.append(", ");
+                    }
+                    text = sb.toString();
+                } else {
+                    text = "📺 Brak informacji o platformach";
+                }
+
+                platformsCache.put(movie.getImdbID(), text);
+                movie.setStreamingPlatforms(text);
+                holder.txtPlatforms.setText(text);
+            }
+
+            @Override
+            public void onFailure(Call<List<WatchmodeSource>> call, Throwable t) {
+                holder.txtPlatforms.setText("📺 Błąd ładowania platform");
+            }
+        });
     }
 
     private void loadMovieDetails(Movie movie, MovieViewHolder holder, int position) {
@@ -125,33 +189,8 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
         });
     }
 
-    private void loadPlatforms(Movie movie, MovieViewHolder holder) {
-        if (movie.getImdbID() == null) return;
-
-        RetrofitClient.getWatchmodeService().getSources(
-                movie.getImdbID(), Constants.WATCHMODE_API_KEY
-        ).enqueue(new Callback<List<WatchmodeSource>>() {
-            @Override
-            public void onResponse(Call<List<WatchmodeSource>> call, Response<List<WatchmodeSource>> response) {
-                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
-                    StringBuilder platforms = new StringBuilder("📺 Dostępne na: ");
-                    List<String> names = new ArrayList<>();
-                    for (WatchmodeSource src : response.body()) {
-                        if (!names.contains(src.getName())) {
-                            names.add(src.getName());
-                        }
-                    }
-                    platforms.append(String.join(", ", names));
-                    holder.txtPlatforms.setText(platforms.toString());
-                } else {
-                    holder.txtPlatforms.setText("📺 Brak informacji o platformach");
-                }
-            }
-            @Override
-            public void onFailure(Call<List<WatchmodeSource>> call, Throwable t) {
-                holder.txtPlatforms.setText("📺 Błąd ładowania platform");
-            }
-        });
+    public HashMap<String, String> getPlatformsCache() {
+        return platformsCache;
     }
 
     @Override

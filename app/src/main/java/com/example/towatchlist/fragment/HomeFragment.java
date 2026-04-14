@@ -8,8 +8,10 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,6 +30,7 @@ import com.example.towatchlist.model.SearchResponse;
 import com.google.android.material.textfield.TextInputEditText;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +40,14 @@ import retrofit2.Response;
 
 public class HomeFragment extends Fragment implements MovieAdapter.OnMovieActionListener {
 
+    private int currentPage = 1;
+    private int totalResults = 0;
+    private static final int RESULTS_PER_PAGE = 10;
+    private String lastQuery = "Batman";
+    private String lastYear = "";
+
+    private ImageButton btnPrevPage, btnNextPage;
+    private TextView txtPageInfo;
     private RecyclerView rvMovies;
     private MovieAdapter adapter;
     private TextInputEditText etSearch, etActor;
@@ -82,6 +93,25 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
         btnSortBest = view.findViewById(R.id.btn_sort_best);
         btnSortWorst = view.findViewById(R.id.btn_sort_worst);
         switchDarkMode = view.findViewById(R.id.switch_dark_mode);
+
+        btnPrevPage = view.findViewById(R.id.btn_prev_page);
+        btnNextPage = view.findViewById(R.id.btn_next_page);
+        txtPageInfo = view.findViewById(R.id.txt_page_info);
+
+        btnPrevPage.setOnClickListener(v -> {
+            if (currentPage > 1) {
+                currentPage--;
+                searchMovies(lastQuery, lastYear, currentPage);
+            }
+        });
+
+        btnNextPage.setOnClickListener(v -> {
+            int totalPages = (int) Math.ceil((double) totalResults / RESULTS_PER_PAGE);
+            if (currentPage < totalPages) {
+                currentPage++;
+                searchMovies(lastQuery, lastYear, currentPage);
+            }
+        });
 
         adapter = new MovieAdapter(requireContext(), this);
         rvMovies.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -159,7 +189,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
     private void setupSorting() {
         btnSortBest.setOnClickListener(v -> {
             if (isSortingActive && !sortAscending) {
-                // Odznacz
                 isSortingActive = false;
                 setButtonActive(btnSortBest, false);
                 adapter.setMovies(currentMovies);
@@ -169,12 +198,12 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
             isSortingActive = true;
             setButtonActive(btnSortBest, true);
             setButtonActive(btnSortWorst, false);
-            sortMovies();
+            Toast.makeText(requireContext(), "Ładowanie ocen...", Toast.LENGTH_SHORT).show();
+            fetchRatingsAndSort();
         });
 
         btnSortWorst.setOnClickListener(v -> {
             if (isSortingActive && sortAscending) {
-                // Odznacz
                 isSortingActive = false;
                 setButtonActive(btnSortWorst, false);
                 adapter.setMovies(currentMovies);
@@ -184,7 +213,8 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
             isSortingActive = true;
             setButtonActive(btnSortWorst, true);
             setButtonActive(btnSortBest, false);
-            sortMovies();
+            Toast.makeText(requireContext(), "Ładowanie ocen...", Toast.LENGTH_SHORT).show();
+            fetchRatingsAndSort();
         });
     }
 
@@ -197,15 +227,25 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
         if (currentMovies.isEmpty()) return;
         List<Movie> sorted = new ArrayList<>(currentMovies);
         sorted.sort((a, b) -> {
-            try {
-                double ra = Double.parseDouble(a.getRating() != null ? a.getRating() : "0");
-                double rb = Double.parseDouble(b.getRating() != null ? b.getRating() : "0");
-                return sortAscending ? Double.compare(ra, rb) : Double.compare(rb, ra);
-            } catch (NumberFormatException e) {
-                return 0;
-            }
+            double ra = parseRating(a.getRating());
+            double rb = parseRating(b.getRating());
+            return sortAscending ? Double.compare(ra, rb) : Double.compare(rb, ra);
         });
-        adapter.setMovies(sorted);
+        if (isAdded() && getContext() != null) {
+            requireActivity().runOnUiThread(() -> adapter.setMovies(sorted));
+        }
+    }
+
+    private double parseRating(String rating) {
+        if (rating == null || rating.equals("N/A") || rating.isEmpty()) {
+            // Filmy bez oceny idą na koniec
+            return sortAscending ? Double.MAX_VALUE : -1.0;
+        }
+        try {
+            return Double.parseDouble(rating);
+        } catch (NumberFormatException e) {
+            return sortAscending ? Double.MAX_VALUE : -1.0;
+        }
     }
 
     private String getSearchQuery() {
@@ -309,54 +349,173 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
     private void filterByPlatform() {
         if (selectedPlatform.isEmpty()) {
             adapter.setMovies(currentMovies);
-        } else {
-            List<Movie> filtered = new ArrayList<>();
-            for (Movie m : currentMovies) {
-                if (m.getStreamingPlatforms() != null &&
-                        m.getStreamingPlatforms().toLowerCase()
-                                .contains(selectedPlatform.toLowerCase())) {
-                    filtered.add(m);
-                }
+            return;
+        }
+
+        HashMap<String, String> cache = adapter.getPlatformsCache();
+        List<Movie> filtered = new ArrayList<>();
+
+        for (Movie m : currentMovies) {
+            String platforms = cache.get(m.getImdbID());
+            if (platforms != null && platforms.toLowerCase()
+                    .contains(selectedPlatform.toLowerCase())) {
+                filtered.add(m);
             }
+        }
+
+        if (filtered.isEmpty()) {
+            Toast.makeText(requireContext(),
+                    "Rozwiń kilka filmów najpierw aby załadować platformy, potem filtruj",
+                    Toast.LENGTH_LONG).show();
+        } else {
             adapter.setMovies(filtered);
         }
     }
 
+    private void searchByGenre(String genre, String year) {
+        // Mapowanie polskich nazw na angielskie słowa kluczowe dla OMDb
+        String genreQuery = mapGenreToQuery(genre);
+        lastQuery = genreQuery;
+        lastYear = year;
+        currentPage = 1;
+        searchMovies(genreQuery, year, 1);
+    }
+
+    private String mapGenreToQuery(String genre) {
+        switch (genre.toLowerCase()) {
+            case "action": return "action";
+            case "comedy": return "comedy";
+            case "drama": return "drama";
+            case "horror": return "horror";
+            case "sci-fi": return "space";
+            case "thriller": return "thriller";
+            case "romance": return "love";
+            case "animation": return "animated";
+            case "documentary": return "documentary";
+            case "fantasy": return "fantasy";
+            default: return genre;
+        }
+    }
+
+    private void fetchRatingsAndSort() {
+        if (currentMovies.isEmpty()) return;
+
+        final int[] completed = {0};
+        final int total = currentMovies.size();
+
+        for (Movie movie : currentMovies) {
+            RetrofitClient.getOmdbService().getMovieById(
+                    movie.getImdbID(), Constants.OMDB_API_KEY, "short"
+            ).enqueue(new Callback<Movie>() {
+                @Override
+                public void onResponse(Call<Movie> call, Response<Movie> response) {
+                    if (!isAdded() || getContext() == null) return;
+                    if (response.isSuccessful() && response.body() != null) {
+                        movie.setRating(response.body().getRating());
+                        movie.setPlot(response.body().getPlot());
+                        movie.setGenre(response.body().getGenre());
+                        movie.setActors(response.body().getActors());
+                    }
+                    completed[0]++;
+                    if (completed[0] == total) {
+                        // Wszystkie oceny załadowane – sortuj
+                        sortMovies();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Movie> call, Throwable t) {
+                    completed[0]++;
+                    if (completed[0] == total) {
+                        sortMovies();
+                    }
+                }
+            });
+        }
+    }
+
     private void searchMovies(String query, String year) {
-        String fullQuery = query;
+        currentPage = 1;
+        lastQuery = query;
+        lastYear = year;
+        searchMovies(query, year, 1);
+    }
+
+    private void searchMovies(String query, String year, int page) {
+        // OMDb wymaga parametru "s", użyj szerokiego zapytania gdy brak konkretnego
+        String fullQuery = query.isEmpty() ? "the" : query;
         if (!selectedGenre.isEmpty()) {
-            fullQuery = query + " " + selectedGenre;
+            fullQuery = mapGenreToQuery(selectedGenre);
         }
 
+        final String finalQuery = fullQuery;
+
+        android.util.Log.d("OMDB", "Szukam: query=" + finalQuery + " year=" + year
+                + " type=" + selectedType + " page=" + page);
+
         RetrofitClient.getOmdbService().searchMovies(
-                fullQuery,
+                finalQuery,
                 Constants.OMDB_API_KEY,
                 selectedType,
                 year.isEmpty() ? null : year,
-                1
+                page
         ).enqueue(new Callback<SearchResponse>() {
             @Override
             public void onResponse(Call<SearchResponse> call, Response<SearchResponse> response) {
                 if (!isAdded() || getContext() == null) return;
+
                 if (response.isSuccessful() && response.body() != null
                         && "True".equals(response.body().getResponse())) {
+
                     currentMovies = response.body().getMovies();
                     adapter.setMovies(currentMovies);
-                    // Zastosuj sortowanie jeśli aktywne
+
+                    try {
+                        totalResults = Integer.parseInt(response.body().getTotalResults());
+                    } catch (NumberFormatException e) {
+                        totalResults = 0;
+                    }
+
+                    int totalPages = (int) Math.ceil((double) totalResults / RESULTS_PER_PAGE);
+                    updatePagination(page, totalPages);
+
                     if (isSortingActive) sortMovies();
+                    rvMovies.scrollToPosition(0);
+
                 } else {
-                    Toast.makeText(requireContext(), "Brak wyników", Toast.LENGTH_SHORT).show();
+                    // Brak wyników – nie rób fallbacku, pokaż komunikat z rokiem
+                    if (!isAdded() || getContext() == null) return;
+                    String msg = !year.isEmpty()
+                            ? "Brak wyników dla roku " + year
+                            : "Brak wyników";
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                     adapter.setMovies(new ArrayList<>());
+                    updatePagination(1, 1);
                 }
             }
 
             @Override
             public void onFailure(Call<SearchResponse> call, Throwable t) {
                 if (!isAdded() || getContext() == null) return;
+                android.util.Log.e("OMDB", "Błąd sieci: " + t.getMessage());
                 Toast.makeText(requireContext(), "Błąd sieci: " + t.getMessage(),
                         Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void updatePagination(int page, int totalPages) {
+        currentPage = page;
+        txtPageInfo.setText("Strona " + page + " z " + totalPages
+                + " (" + totalResults + " filmów)");
+
+        // Poprzednia strona
+        btnPrevPage.setEnabled(page > 1);
+        btnPrevPage.setAlpha(page > 1 ? 1.0f : 0.4f);
+
+        // Następna strona
+        btnNextPage.setEnabled(page < totalPages);
+        btnNextPage.setAlpha(page < totalPages ? 1.0f : 0.4f);
     }
 
     @Override

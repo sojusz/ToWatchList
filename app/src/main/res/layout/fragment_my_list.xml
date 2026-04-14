@@ -19,7 +19,12 @@
         android:id="@+id/tab_layout_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary" />
+        android:background="?attr/colorPrimary"
+        app:tabTextColor="#80FFFFFF"
+        app:tabSelectedTextColor="@color/white"
+        app:tabIndicatorColor="@color/white"
+        app:tabIndicatorHeight="3dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_my_list"
