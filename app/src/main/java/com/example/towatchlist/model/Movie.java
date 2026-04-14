@@ -5,6 +5,9 @@ import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import com.google.gson.annotations.SerializedName;
 
+import java.util.Arrays;
+import java.util.List;
+
 @Entity(tableName = "movies")
 public class Movie {
 
@@ -37,12 +40,12 @@ public class Movie {
     @SerializedName("Type")
     private String type;
 
-    // Dla lokalnej bazy danych
     private boolean isWatched = false;
     private boolean isInMyList = false;
     private String streamingPlatforms = "";
 
-    // Gettery i settery
+    // ===== GETTERY / SETTERY =====
+
     @NonNull
     public String getImdbID() { return imdbID; }
     public void setImdbID(@NonNull String imdbID) { this.imdbID = imdbID; }
@@ -79,4 +82,22 @@ public class Movie {
 
     public String getStreamingPlatforms() { return streamingPlatforms; }
     public void setStreamingPlatforms(String streamingPlatforms) { this.streamingPlatforms = streamingPlatforms; }
+
+    // ===== 🔥 NOWE: BEZPIECZNE METODY =====
+
+    // Rozbija "Action, Adventure" -> lista
+    public List<String> getGenreList() {
+        if (genre == null || genre.isEmpty()) return Arrays.asList();
+        return Arrays.asList(genre.split(", "));
+    }
+
+    // Sprawdza czy film ma dany gatunek
+    public boolean hasGenre(String selectedGenre) {
+        return genre != null && genre.toLowerCase().contains(selectedGenre.toLowerCase());
+    }
+
+    // Sprawdza rok (obsługuje np. "2008–2010")
+    public boolean hasYear(String selectedYear) {
+        return year != null && year.contains(selectedYear);
+    }
 }

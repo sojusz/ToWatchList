@@ -1,6 +1,7 @@
 package com.example.towatchlist.fragment;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -225,12 +226,15 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
 
     private void sortMovies() {
         if (currentMovies.isEmpty()) return;
-        List<Movie> sorted = new ArrayList<>(currentMovies);
+
+        List<Movie> sorted = filterMoviesLocal();
+
         sorted.sort((a, b) -> {
             double ra = parseRating(a.getRating());
             double rb = parseRating(b.getRating());
             return sortAscending ? Double.compare(ra, rb) : Double.compare(rb, ra);
         });
+
         if (isAdded() && getContext() != null) {
             requireActivity().runOnUiThread(() -> adapter.setMovies(sorted));
         }
@@ -246,6 +250,24 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
         } catch (NumberFormatException e) {
             return sortAscending ? Double.MAX_VALUE : -1.0;
         }
+    }
+
+    private List<Movie> filterMoviesLocal() {
+        List<Movie> filtered = new ArrayList<>();
+
+        for (Movie m : currentMovies) {
+
+            boolean matchesGenre =
+                    selectedGenre.isEmpty()
+                            || (m.getGenre() != null
+                            && m.getGenre().toLowerCase().contains(selectedGenre.toLowerCase()));
+
+            if (matchesGenre) {
+                filtered.add(m);
+            }
+        }
+
+        return filtered;
     }
 
     private String getSearchQuery() {
@@ -444,9 +466,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
     private void searchMovies(String query, String year, int page) {
         // OMDb wymaga parametru "s", użyj szerokiego zapytania gdy brak konkretnego
         String fullQuery = query.isEmpty() ? "the" : query;
-        if (!selectedGenre.isEmpty()) {
-            fullQuery = mapGenreToQuery(selectedGenre);
-        }
 
         final String finalQuery = fullQuery;
 
