@@ -11,10 +11,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ToWatchList">
 
-        <meta-data
-            android:name="com.example.towatchlist.GlideModule"
-            android:value="GlideModule" />
-
 
         <activity
             android:name=".MainActivity"

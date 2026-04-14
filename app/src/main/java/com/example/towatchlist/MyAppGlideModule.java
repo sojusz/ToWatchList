@@ -27,4 +27,9 @@ public class MyAppGlideModule extends AppGlideModule {
         registry.replace(GlideUrl.class, InputStream.class,
                 new OkHttpUrlLoader.Factory(client));
     }
+
+    @Override
+    public boolean isManifestParsingEnabled() {
+        return false;
+    }
 }
