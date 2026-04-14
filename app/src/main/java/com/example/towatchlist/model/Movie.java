@@ -1,103 +1,107 @@
 package com.example.towatchlist.model;
 
-import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import com.example.towatchlist.api.Constants;
 import com.google.gson.annotations.SerializedName;
+import java.io.Serializable;
 
-import java.util.Arrays;
-import java.util.List;
-
-@Entity(tableName = "movies")
-public class Movie {
+@Entity(tableName = "movies_table") // TO JEST KLUCZOWE
+public class Movie implements Serializable {
 
     @PrimaryKey
-    @NonNull
-    @SerializedName("imdbID")
-    private String imdbID;
+    @SerializedName("id")
+    private int id;
 
-    @SerializedName("Title")
+    @SerializedName("title")
     private String title;
 
-    @SerializedName("Year")
-    private String year;
+    @SerializedName("poster_path")
+    private String posterPath;
 
-    @SerializedName("Poster")
-    private String posterUrl;
+    @SerializedName("release_date")
+    private String releaseDate;
 
-    @SerializedName("imdbRating")
-    private String rating;
+    @SerializedName("vote_average")
+    private double rating;
 
-    @SerializedName("Plot")
+    @SerializedName("overview")
     private String plot;
 
-    @SerializedName("Genre")
-    private String genre;
-
-    @SerializedName("Actors")
-    private String actors;
-
-    @SerializedName("Type")
-    private String type;
-
     private boolean isWatched = false;
-    private boolean isInMyList = false;
-    private String streamingPlatforms = "";
 
-    // ===== GETTERY / SETTERY =====
+    private String streamingPlatforms;
 
-    @NonNull
-    public String getImdbID() { return imdbID; }
-    public void setImdbID(@NonNull String imdbID) { this.imdbID = imdbID; }
+    public Movie(int id, String title, String posterPath, String releaseDate, double rating, String plot) {
+        this.id = id;
+        this.title = title;
+        this.posterPath = posterPath;
+        this.releaseDate = releaseDate;
+        this.rating = rating;
+        this.plot = plot;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public int getId() {
+        return id;
+    }
 
-    public String getYear() { return year; }
-    public void setYear(String year) { this.year = year; }
+    public void setId(int id) {
+        this.id = id;
+    }
 
-    public String getPosterUrl() { return posterUrl; }
-    public void setPosterUrl(String posterUrl) { this.posterUrl = posterUrl; }
+    public String getTitle() {
+        return title;
+    }
 
-    public String getRating() { return rating; }
-    public void setRating(String rating) { this.rating = rating; }
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
-    public String getPlot() { return plot; }
-    public void setPlot(String plot) { this.plot = plot; }
+    public String getPosterPath() {
+        return posterPath;
+    }
 
-    public String getGenre() { return genre; }
-    public void setGenre(String genre) { this.genre = genre; }
+    public void setPosterPath(String posterPath) {
+        this.posterPath = posterPath;
+    }
 
-    public String getActors() { return actors; }
-    public void setActors(String actors) { this.actors = actors; }
+    public String getReleaseDate() {
+        return releaseDate;
+    }
 
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public void setReleaseDate(String releaseDate) {
+        this.releaseDate = releaseDate;
+    }
 
+    public double getRating() {
+        return rating;
+    }
+
+    public void setRating(double rating) {
+        this.rating = rating;
+    }
+
+    public String getPlot() {
+        return plot;
+    }
+
+    public void setPlot(String plot) {
+        this.plot = plot;
+    }
+
+    public String getPosterUrl() {
+        if (posterPath == null || posterPath.isEmpty()) return null;
+        return Constants.TMDB_IMAGE_BASE_URL + posterPath;
+    }
+    public String getYear() {
+        if (releaseDate != null && releaseDate.length() >= 4) {
+            return releaseDate.substring(0, 4);
+        }
+        return "N/A";
+    }
+    public String getStreamingPlatforms() { return streamingPlatforms; }
     public boolean isWatched() { return isWatched; }
     public void setWatched(boolean watched) { isWatched = watched; }
-
-    public boolean isInMyList() { return isInMyList; }
-    public void setInMyList(boolean inMyList) { isInMyList = inMyList; }
-
-    public String getStreamingPlatforms() { return streamingPlatforms; }
     public void setStreamingPlatforms(String streamingPlatforms) { this.streamingPlatforms = streamingPlatforms; }
 
-    // ===== 🔥 NOWE: BEZPIECZNE METODY =====
-
-    // Rozbija "Action, Adventure" -> lista
-    public List<String> getGenreList() {
-        if (genre == null || genre.isEmpty()) return Arrays.asList();
-        return Arrays.asList(genre.split(", "));
-    }
-
-    // Sprawdza czy film ma dany gatunek
-    public boolean hasGenre(String selectedGenre) {
-        return genre != null && genre.toLowerCase().contains(selectedGenre.toLowerCase());
-    }
-
-    // Sprawdza rok (obsługuje np. "2008–2010")
-    public boolean hasYear(String selectedYear) {
-        return year != null && year.contains(selectedYear);
-    }
 }

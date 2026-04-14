@@ -50,7 +50,7 @@
             android:inputType="text" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Filtry w osobnym HorizontalScrollView – NIE owijają RecyclerView -->
+    <!-- Filtry w osobnym HorizontalScrollView -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -149,22 +149,6 @@
                     android:layout_height="wrap_content"
                     android:padding="8dp" />
             </LinearLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_margin="4dp">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_actor"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Aktor (np. Pitt)"
-                    android:imeOptions="actionSearch"
-                    android:inputType="text" />
-            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- Sortowanie -->

@@ -121,7 +121,10 @@
                     android:text="+ Moja lista"
                     android:backgroundTint="@color/navy"
                     android:textColor="@color/white"
-                    android:layout_marginEnd="4dp"/>
+                    android:layout_marginEnd="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"/>
 
                 <Button
                     android:id="@+id/btn_mark_watched"
@@ -131,7 +134,10 @@
                     android:text="✓ Obejrzany"
                     android:backgroundTint="@color/navy_light"
                     android:textColor="@color/white"
-                    android:layout_marginStart="4dp"/>
+                    android:layout_marginStart="4dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"/>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

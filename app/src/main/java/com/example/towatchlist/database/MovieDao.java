@@ -1,7 +1,11 @@
 package com.example.towatchlist.database;
 
 import androidx.lifecycle.LiveData;
-import androidx.room.*;
+import androidx.room.Dao;
+import androidx.room.Delete;
+import androidx.room.Insert;
+import androidx.room.OnConflictStrategy;
+import androidx.room.Query;
 import com.example.towatchlist.model.Movie;
 import java.util.List;
 
@@ -14,15 +18,12 @@ public interface MovieDao {
     @Delete
     void delete(Movie movie);
 
-    @Query("SELECT * FROM movies WHERE isInMyList = 1")
-    LiveData<List<Movie>> getMyList();
+    @Query("SELECT * FROM movies_table")
+    LiveData<List<Movie>> getAllMovies();
 
-    @Query("SELECT * FROM movies WHERE isWatched = 1")
-    LiveData<List<Movie>> getWatched();
+    @Query("SELECT * FROM movies_table WHERE id = :movieId LIMIT 1")
+    Movie getMovieById(int movieId);
 
-    @Query("SELECT * FROM movies WHERE imdbID = :id")
-    Movie getById(String id);
-
-    @Update
-    void update(Movie movie);
+    @Query("DELETE FROM movies_table WHERE id = :movieId")
+    void deleteById(int movieId);
 }

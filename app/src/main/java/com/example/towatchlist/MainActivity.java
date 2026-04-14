@@ -17,7 +17,6 @@ public class MainActivity extends AppCompatActivity {
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
 
-        // Domyślny fragment
         loadFragment(new HomeFragment());
 
         bottomNav.setOnItemSelectedListener(item -> {

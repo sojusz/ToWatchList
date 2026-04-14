@@ -1,25 +1,36 @@
 package com.example.towatchlist.fragment;
 
 import android.os.Bundle;
-import android.view.*;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Toast;
-import androidx.annotation.*;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.*;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import com.example.towatchlist.R;
 import com.example.towatchlist.adapter.MovieAdapter;
 import com.example.towatchlist.api.Constants;
 import com.example.towatchlist.api.RetrofitClient;
-import com.example.towatchlist.database.AppDatabase;
-import com.example.towatchlist.model.*;
-import java.util.*;
-import java.util.concurrent.*;
-import retrofit2.*;
+import com.example.towatchlist.database.MovieDatabase; // Zmienione z AppDatabase
+import com.example.towatchlist.model.Movie;
+import com.example.towatchlist.model.MovieResponse;
+import java.util.Calendar;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class NewReleasesFragment extends Fragment implements MovieAdapter.OnMovieActionListener {
 
     private MovieAdapter adapter;
     private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private boolean showingWatched = false;
+    private int currentPage = 1;
 
     @Nullable
     @Override
@@ -32,28 +43,37 @@ public class NewReleasesFragment extends Fragment implements MovieAdapter.OnMovi
         rv.setLayoutManager(new LinearLayoutManager(requireContext()));
         rv.setAdapter(adapter);
 
-        loadNewReleases();
+        loadMovies();
         return view;
     }
 
-    private void loadNewReleases() {
-        String currentYear = String.valueOf(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR));
-        RetrofitClient.getOmdbService().searchMovies(
-                "2024", Constants.OMDB_API_KEY, null, currentYear, 1
-        ).enqueue(new Callback<SearchResponse>() {
-            @Override
-            public void onResponse(Call<SearchResponse> call, Response<SearchResponse> response) {
-                if (!isAdded() || getContext() == null) return; // <-- FIX
-                if (response.isSuccessful() && response.body() != null
-                        && "True".equals(response.body().getResponse())) {
-                    adapter.setMovies(response.body().getMovies());
-                }
-            }
+    private void loadMovies() {
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
 
-            @Override
-            public void onFailure(Call<SearchResponse> call, Throwable t) {
-                if (!isAdded() || getContext() == null) return; // <-- FIX
-                Toast.makeText(requireContext(), "Błąd ładowania nowości", Toast.LENGTH_SHORT).show();
+        RetrofitClient.getTmdbService()
+                .discoverMovies(Constants.TMDB_API_KEY, null, currentYear, null, "popularity.desc", "pl-PL", currentPage)
+                .enqueue(new Callback<MovieResponse>() {
+                    @Override
+                    public void onResponse(Call<MovieResponse> call, Response<MovieResponse> response) {
+                        if (isAdded() && response.isSuccessful() && response.body() != null) {
+                            adapter.setMovies(response.body().getResults());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<MovieResponse> call, Throwable t) {
+                        Log.e("API_ERROR", "Błąd: " + t.getMessage());
+                    }
+                });
+    }
+
+    @Override
+    public void onDeleteFromList(Movie movie) {
+        executor.execute(() -> {
+            MovieDatabase.getDatabase(requireContext()).movieDao().delete(movie);
+            if (isAdded()) {
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "Usunięto z listy", Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -61,23 +81,27 @@ public class NewReleasesFragment extends Fragment implements MovieAdapter.OnMovi
     @Override
     public void onAddToList(Movie movie) {
         executor.execute(() -> {
-            movie.setInMyList(true);
-            AppDatabase.getInstance(requireContext()).movieDao().insert(movie);
-            if (!isAdded() || getActivity() == null) return; // <-- FIX
-            requireActivity().runOnUiThread(() ->
-                    Toast.makeText(requireContext(), "Dodano do listy!", Toast.LENGTH_SHORT).show());
+            // Zmieniamy na nową bazę danych i usuwamy setInMyList (którego nie ma w modelu)
+            MovieDatabase.getDatabase(requireContext()).movieDao().insert(movie);
+
+            if (isAdded() && getActivity() != null) {
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "Dodano do listy!", Toast.LENGTH_SHORT).show());
+            }
         });
     }
 
     @Override
     public void onMarkWatched(Movie movie) {
         executor.execute(() -> {
+            // Ustawiamy status w modelu i zapisujemy (wymaga dodania setWatched w Movie.java)
             movie.setWatched(true);
-            movie.setInMyList(true);
-            AppDatabase.getInstance(requireContext()).movieDao().insert(movie);
-            if (!isAdded() || getActivity() == null) return; // <-- FIX
-            requireActivity().runOnUiThread(() ->
-                    Toast.makeText(requireContext(), "Oznaczono jako obejrzany!", Toast.LENGTH_SHORT).show());
+            MovieDatabase.getDatabase(requireContext()).movieDao().insert(movie);
+
+            if (isAdded() && getActivity() != null) {
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), "Oznaczono jako obejrzany!", Toast.LENGTH_SHORT).show());
+            }
         });
     }
 }

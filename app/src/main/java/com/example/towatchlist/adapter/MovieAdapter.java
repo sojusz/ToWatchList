@@ -29,17 +29,26 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     private Context context;
     private OnMovieActionListener listener;
     private int expandedPosition = -1;
-
     private HashMap<String, String> platformsCache = new HashMap<>();
+    private boolean isFromMyList = false;
 
     public interface OnMovieActionListener {
         void onAddToList(Movie movie);
         void onMarkWatched(Movie movie);
+        void onDeleteFromList(Movie movie);
+    }
+
+    public List<Movie> getMovies() {
+        return movies;
     }
 
     public MovieAdapter(Context context, OnMovieActionListener listener) {
         this.context = context;
         this.listener = listener;
+    }
+
+    public void setFromMyList(boolean fromMyList) {
+        this.isFromMyList = fromMyList;
     }
 
     public void setMovies(List<Movie> movies) {
@@ -57,53 +66,28 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
 
     @Override
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
-        // 1. Prawidłowe pobranie pozycji i obiektu
         int currentPosition = holder.getAdapterPosition();
+        if (currentPosition == RecyclerView.NO_POSITION) return;
+
         Movie movie = movies.get(currentPosition);
         boolean isExpanded = currentPosition == expandedPosition;
 
-        // Collapsed view
         holder.txtTitle.setText(movie.getTitle());
-        String posterUrl = movie.getPosterUrl();
-        if (posterUrl != null && !posterUrl.equals("N/A") && posterUrl.startsWith("http")) {
-            Glide.with(context)
-                    .load(posterUrl)
-                    .placeholder(android.R.drawable.ic_menu_gallery)
-                    .error(android.R.drawable.ic_menu_gallery)
-                    .into(holder.imgPoster);
-        } else {
-            holder.imgPoster.setImageResource(android.R.drawable.ic_menu_gallery);
-        }
-
-        // Expanded view
         holder.txtTitleBig.setText(movie.getTitle());
-        holder.txtYear.setText(movie.getYear() != null ? movie.getYear() : "");
+        holder.txtYear.setText(movie.getYear());
+        holder.txtPlot.setText(movie.getPlot() != null && !movie.getPlot().isEmpty() ? movie.getPlot() : "Brak opisu");
+        holder.txtRating.setText("⭐ " + movie.getRating());
 
-        String rating = movie.getRating();
-        holder.txtRating.setText("⭐ " + (rating != null && !rating.equals("N/A") ? rating + "/10" : "brak oceny"));
+        Glide.with(context).load(movie.getPosterUrl()).placeholder(android.R.drawable.ic_menu_gallery).into(holder.imgPoster);
+        Glide.with(context).load(movie.getPosterUrl()).into(holder.imgPosterBig);
 
-        holder.txtPlot.setText(movie.getPlot() != null ? movie.getPlot() : "Brak opisu");
-
-        if (posterUrl != null && !posterUrl.equals("N/A") && posterUrl.startsWith("http")) {
-            Glide.with(context)
-                    .load(posterUrl)
-                    .placeholder(android.R.drawable.ic_menu_gallery)
-                    .error(android.R.drawable.ic_menu_gallery)
-                    .into(holder.imgPosterBig);
-        } else {
-            holder.imgPosterBig.setImageResource(android.R.drawable.ic_menu_gallery);
-        }
-
-        // Toggle expanded visibility
         holder.layoutCollapsed.setVisibility(isExpanded ? View.GONE : View.VISIBLE);
         holder.layoutExpanded.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
 
-        // 2. Obsługa kliknięcia (używamy currentPosition)
         holder.itemView.setOnClickListener(v -> {
             int pos = holder.getAdapterPosition();
-            if (pos == RecyclerView.NO_POSITION) return;
-
             int prev = expandedPosition;
+
             if (isExpanded) {
                 expandedPosition = -1;
                 notifyItemChanged(pos);
@@ -111,31 +95,43 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
                 expandedPosition = pos;
                 if (prev != -1) notifyItemChanged(prev);
                 notifyItemChanged(pos);
-
-                // Załaduj szczegóły jeśli brak
-                if (movie.getPlot() == null || movie.getPlot().isEmpty()) {
-                    loadMovieDetails(movie, holder, pos);
-                }
                 loadPlatforms(movie, holder);
             }
         });
 
-        holder.btnAddToList.setOnClickListener(v -> listener.onAddToList(movie));
-        holder.btnMarkWatched.setOnClickListener(v -> listener.onMarkWatched(movie));
+        if (isFromMyList) {
+            holder.btnAddToList.setText("Usuń z listy");
+            holder.btnAddToList.setOnClickListener(v -> listener.onDeleteFromList(movie));
+
+            if (movie.isWatched()) {
+                holder.btnMarkWatched.setVisibility(View.GONE);
+            } else {
+                holder.btnMarkWatched.setVisibility(View.VISIBLE);
+                holder.btnMarkWatched.setText("Obejrzane");
+                holder.btnMarkWatched.setOnClickListener(v -> listener.onMarkWatched(movie));
+            }
+        } else {
+            holder.btnAddToList.setText("Do listy");
+            holder.btnAddToList.setOnClickListener(v -> listener.onAddToList(movie));
+
+            holder.btnMarkWatched.setVisibility(View.VISIBLE);
+            holder.btnMarkWatched.setText("Obejrzane");
+            holder.btnMarkWatched.setOnClickListener(v -> listener.onMarkWatched(movie));
+        }
     }
 
     private void loadPlatforms(Movie movie, MovieViewHolder holder) {
-        if (movie.getImdbID() == null) return;
+        String movieId = String.valueOf(movie.getId());
 
-        if (platformsCache.containsKey(movie.getImdbID())) {
-            holder.txtPlatforms.setText(platformsCache.get(movie.getImdbID()));
+        if (platformsCache.containsKey(movieId)) {
+            holder.txtPlatforms.setText(platformsCache.get(movieId));
             return;
         }
 
         holder.txtPlatforms.setText("📺 Ładowanie platform...");
 
         RetrofitClient.getWatchmodeService().getSources(
-                movie.getImdbID(), Constants.WATCHMODE_API_KEY
+                "movie-" + movieId, Constants.WATCHMODE_API_KEY
         ).enqueue(new Callback<List<WatchmodeSource>>() {
             @Override
             public void onResponse(Call<List<WatchmodeSource>> call, Response<List<WatchmodeSource>> response) {
@@ -148,7 +144,6 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
                             names.add(src.getName());
                         }
                     }
-                    // 3. Bezpieczne łączenie tekstów (zamiast String.join)
                     for (int i = 0; i < names.size(); i++) {
                         sb.append(names.get(i));
                         if (i < names.size() - 1) sb.append(", ");
@@ -157,40 +152,16 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
                 } else {
                     text = "📺 Brak informacji o platformach";
                 }
-
-                platformsCache.put(movie.getImdbID(), text);
+                platformsCache.put(movieId, text);
                 movie.setStreamingPlatforms(text);
                 holder.txtPlatforms.setText(text);
             }
 
             @Override
             public void onFailure(Call<List<WatchmodeSource>> call, Throwable t) {
-                holder.txtPlatforms.setText("📺 Błąd ładowania platform");
+                holder.txtPlatforms.setText("📺 Błąd ładowania");
             }
         });
-    }
-
-    private void loadMovieDetails(Movie movie, MovieViewHolder holder, int position) {
-        RetrofitClient.getOmdbService().getMovieById(
-                movie.getImdbID(), Constants.OMDB_API_KEY, "full"
-        ).enqueue(new Callback<Movie>() {
-            @Override
-            public void onResponse(Call<Movie> call, Response<Movie> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    Movie details = response.body();
-                    movie.setPlot(details.getPlot());
-                    movie.setRating(details.getRating());
-                    movie.setActors(details.getActors());
-                    notifyItemChanged(position);
-                }
-            }
-            @Override
-            public void onFailure(Call<Movie> call, Throwable t) {}
-        });
-    }
-
-    public HashMap<String, String> getPlatformsCache() {
-        return platformsCache;
     }
 
     @Override

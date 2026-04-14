@@ -1,18 +1,24 @@
 package com.example.towatchlist.fragment;
 
 import android.os.Bundle;
-import android.view.*;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Toast;
-import androidx.annotation.*;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.*;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import com.example.towatchlist.R;
 import com.example.towatchlist.adapter.MovieAdapter;
-import com.example.towatchlist.database.AppDatabase;
+import com.example.towatchlist.database.MovieDatabase;
 import com.example.towatchlist.model.Movie;
 import com.google.android.material.tabs.TabLayout;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MyListFragment extends Fragment implements MovieAdapter.OnMovieActionListener {
 
@@ -29,50 +35,59 @@ public class MyListFragment extends Fragment implements MovieAdapter.OnMovieActi
         adapter = new MovieAdapter(requireContext(), this);
         rv.setLayoutManager(new LinearLayoutManager(requireContext()));
         rv.setAdapter(adapter);
-
         TabLayout tabLayout = view.findViewById(R.id.tab_layout_list);
-        tabLayout.addTab(tabLayout.newTab().setText("Do obejrzenia"));
-        tabLayout.addTab(tabLayout.newTab().setText("Obejrzane"));
 
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                showingWatched = tab.getPosition() == 1;
-                loadList();
+        if (tabLayout != null) {
+            if (tabLayout.getTabCount() == 0) {
+                tabLayout.addTab(tabLayout.newTab().setText("Do obejrzenia"));
+                tabLayout.addTab(tabLayout.newTab().setText("Obejrzane"));
             }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {}
-        });
+            tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+                @Override
+                public void onTabSelected(TabLayout.Tab tab) {
+                    showingWatched = tab.getPosition() == 1;
+                    loadList();
+                }
+                @Override public void onTabUnselected(TabLayout.Tab tab) {}
+                @Override public void onTabReselected(TabLayout.Tab tab) {}
+            });
+        }
 
         loadList();
         return view;
     }
 
     private void loadList() {
-        AppDatabase db = AppDatabase.getInstance(requireContext());
-        if (showingWatched) {
-            db.getWatched().observe(getViewLifecycleOwner(), movies -> adapter.setMovies(movies));
-        } else {
-            db.getMyList().observe(getViewLifecycleOwner(), movies -> {
-                List<Movie> toWatch = new ArrayList<>();
-                for (Movie m : movies) {
-                    if (!m.isWatched()) toWatch.add(m);
-                }
-                adapter.setMovies(toWatch);
-            });
-        }
+        adapter.setFromMyList(true);
+        MovieDatabase.getDatabase(requireContext()).movieDao().getAllMovies()
+                .observe(getViewLifecycleOwner(), movies -> {
+                    List<Movie> filteredList = new ArrayList<>();
+                    for (Movie m : movies) {
+                        if (m.isWatched() == showingWatched) {
+                            filteredList.add(m);
+                        }
+                    }
+                    adapter.setMovies(filteredList);
+                });
     }
 
     @Override
-    public void onAddToList(Movie movie) { /* już na liście */ }
+    public void onAddToList(Movie movie) {
+        // Film już jest w bazie, możemy go np. usunąć jeśli użytkownik kliknie ponownie
+    }
+
+    @Override
+    public void onDeleteFromList(Movie movie) {
+        executor.execute(() -> {
+            MovieDatabase.getDatabase(requireContext()).movieDao().delete(movie);
+        });
+    }
 
     @Override
     public void onMarkWatched(Movie movie) {
         executor.execute(() -> {
             movie.setWatched(true);
-            AppDatabase.getInstance(requireContext()).movieDao().update(movie);
-            requireActivity().runOnUiThread(() ->
-                    Toast.makeText(requireContext(), "Oznaczono jako obejrzany!", Toast.LENGTH_SHORT).show());
+            MovieDatabase.getDatabase(requireContext()).movieDao().insert(movie);
         });
     }
 }
