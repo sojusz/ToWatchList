@@ -40,6 +40,7 @@ public interface TmdbApiService {
             @Query("with_genres") String genreId,
             @Query("first_air_date_year") Integer year,
             @Query("language") String language,
+            @Query("sort_by") String sortBy, // <--- DODAJ TO
             @Query("page") int page
     );
 }

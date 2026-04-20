@@ -16,6 +16,9 @@ public class Movie implements Serializable {
     @SerializedName("title")
     private String title;
 
+    @SerializedName("name")
+    private String name;
+
     @SerializedName("poster_path")
     private String posterPath;
 
@@ -32,9 +35,10 @@ public class Movie implements Serializable {
 
     private String streamingPlatforms;
 
-    public Movie(int id, String title, String posterPath, String releaseDate, double rating, String plot) {
+    public Movie(int id, String title, String name, String posterPath, String releaseDate, double rating, String plot) {
         this.id = id;
         this.title = title;
+        this.name = name;
         this.posterPath = posterPath;
         this.releaseDate = releaseDate;
         this.rating = rating;
@@ -50,11 +54,24 @@ public class Movie implements Serializable {
     }
 
     public String getTitle() {
-        return title;
+        if (title != null && !title.isEmpty()) {
+            return title;
+        } else if (name != null && !name.isEmpty()) {
+            return name;
+        }
+        return "Brak tytułu";
     }
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getPosterPath() {

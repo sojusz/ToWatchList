@@ -29,7 +29,7 @@ public class NewReleasesFragment extends Fragment implements MovieAdapter.OnMovi
 
     private MovieAdapter adapter;
     private ExecutorService executor = Executors.newSingleThreadExecutor();
-    private boolean showingWatched = false;
+//    private boolean showingWatched = false;
     private int currentPage = 1;
 
     @Nullable
@@ -49,7 +49,6 @@ public class NewReleasesFragment extends Fragment implements MovieAdapter.OnMovi
 
     private void loadMovies() {
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-
         RetrofitClient.getTmdbService()
                 .discoverMovies(Constants.TMDB_API_KEY, null, currentYear, null, "popularity.desc", "pl-PL", currentPage)
                 .enqueue(new Callback<MovieResponse>() {
@@ -71,30 +70,19 @@ public class NewReleasesFragment extends Fragment implements MovieAdapter.OnMovi
     public void onDeleteFromList(Movie movie) {
         executor.execute(() -> {
             MovieDatabase.getDatabase(requireContext()).movieDao().delete(movie);
-            if (isAdded()) {
-                requireActivity().runOnUiThread(() ->
-                        Toast.makeText(requireContext(), "Usunięto z listy", Toast.LENGTH_SHORT).show());
-            }
         });
     }
 
     @Override
     public void onAddToList(Movie movie) {
         executor.execute(() -> {
-            // Zmieniamy na nową bazę danych i usuwamy setInMyList (którego nie ma w modelu)
             MovieDatabase.getDatabase(requireContext()).movieDao().insert(movie);
-
-            if (isAdded() && getActivity() != null) {
-                requireActivity().runOnUiThread(() ->
-                        Toast.makeText(requireContext(), "Dodano do listy!", Toast.LENGTH_SHORT).show());
-            }
         });
     }
 
     @Override
     public void onMarkWatched(Movie movie) {
         executor.execute(() -> {
-            // Ustawiamy status w modelu i zapisujemy (wymaga dodania setWatched w Movie.java)
             movie.setWatched(true);
             MovieDatabase.getDatabase(requireContext()).movieDao().insert(movie);
 

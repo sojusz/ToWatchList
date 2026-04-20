@@ -47,8 +47,8 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
     private String selectedPlatform = "";
     private String selectedGenreId = "";
     private String selectedYear = "";
-    private boolean showingWatched = false;
-
+    private LinearLayout layoutFiltersContainer;
+    private boolean isFilterPanelVisible = true;
     private ImageButton btnPrevPage, btnNextPage;
     private TextView txtPageInfo;
     private RecyclerView rvMovies;
@@ -56,7 +56,7 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
     private TextInputEditText etSearch;
     private Spinner spinnerYear;
     private LinearLayout llGenreFilters;
-    private Button btnSortBest, btnSortWorst;
+    private Button btnSortBest, btnSortWorst, btnToggleFilters;
     private SwitchCompat switchDarkMode;
 
     private ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -80,6 +80,19 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
         btnPrevPage = view.findViewById(R.id.btn_prev_page);
         btnNextPage = view.findViewById(R.id.btn_next_page);
         txtPageInfo = view.findViewById(R.id.txt_page_info);
+        layoutFiltersContainer = view.findViewById(R.id.layout_filters_container);
+        btnToggleFilters = view.findViewById(R.id.btn_toggle_filters);
+
+        btnToggleFilters.setOnClickListener(v -> {
+            if (isFilterPanelVisible) {
+                layoutFiltersContainer.setVisibility(View.GONE);
+                btnToggleFilters.setText("Pokaż Filtry");
+            } else {
+                layoutFiltersContainer.setVisibility(View.VISIBLE);
+                btnToggleFilters.setText("Ukryj Filtry");
+            }
+            isFilterPanelVisible = !isFilterPanelVisible;
+        });
 
         adapter = new MovieAdapter(requireContext(), this);
         rvMovies.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -94,7 +107,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
         setupSorting();
         setupTypeFilters(view);
         setupPlatformFilters(view);
-
         fetchMovies();
 
         return view;
@@ -106,7 +118,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
 
         llTypeFilters.removeAllViews();
 
-        // Definiujemy typy
         String[] types = {"Filmy", "Seriale"};
         String[] typeKeys = {"movie", "tv"};
 
@@ -115,7 +126,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
             Button btn = new Button(requireContext());
             btn.setText(types[i]);
 
-            // Wygląd przycisku (taki sam jak w Twoim XML)
             btn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                     requireContext().getColor(selectedType.equals(key) ? R.color.blue_accent : R.color.navy)));
             btn.setTextColor(requireContext().getColor(R.color.white));
@@ -128,8 +138,35 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
             btn.setOnClickListener(v -> {
                 selectedType = key;
                 currentPage = 1;
+
+                selectedGenreId = "";
+                selectedYear = "";
+                selectedPlatform = "";
+                selectedSort = "popularity.desc";
+
+                if (spinnerYear != null) spinnerYear.setSelection(0);
+
+                if (selectedType.equals("tv")) {
+                    GENRE_IDS[0] = "10759";
+                    GENRE_IDS[1] = "35";
+                    GENRE_IDS[2] = "18";
+                    GENRE_IDS[3] = "9648";
+                    GENRE_IDS[4] = "10765";
+                    GENRE_IDS[5] = "80";
+                } else {
+                    GENRE_IDS[0] = "28";
+                    GENRE_IDS[1] = "35";
+                    GENRE_IDS[2] = "18";
+                    GENRE_IDS[3] = "27";
+                    GENRE_IDS[4] = "878";
+                    GENRE_IDS[5] = "53";
+                }
+
                 fetchMovies();
-                setupTypeFilters(view); // Odśwież kolory
+                setupTypeFilters(view);
+                setupGenreFilters();
+                setupPlatformFilters(view);
+                updateSortButtonColors();
             });
 
             llTypeFilters.addView(btn);
@@ -185,7 +222,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
             }
         }
 
-        // Wyświetlamy tylko pasujące filmy
         adapter.setMovies(filteredList);
     }
 
@@ -204,7 +240,6 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
         View.OnClickListener sortListener = v -> {
             String clickedSort = (v.getId() == R.id.btn_sort_best) ? "vote_average.desc" : "vote_average.asc";
 
-            // Logika TOGGLE: Jeśli kliknięty jest już aktywny, wyłączamy go (wracamy do popularności)
             if (selectedSort.equals(clickedSort)) {
                 selectedSort = "popularity.desc";
             } else {
@@ -212,7 +247,7 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
             }
 
             currentPage = 1;
-            updateSortButtonColors(); // Zmiana kolorów
+            updateSortButtonColors();
             fetchMovies();
         };
 
@@ -221,11 +256,9 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
     }
 
     private void updateSortButtonColors() {
-        // Najlepsze
         int bestColor = selectedSort.equals("vote_average.desc") ? R.color.blue_accent : R.color.navy;
         btnSortBest.setBackgroundTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(bestColor)));
 
-        // Najgorsze
         int worstColor = selectedSort.equals("vote_average.asc") ? R.color.blue_accent : R.color.navy;
         btnSortWorst.setBackgroundTintList(android.content.res.ColorStateList.valueOf(requireContext().getColor(worstColor)));
     }
@@ -258,11 +291,13 @@ public class HomeFragment extends Fragment implements MovieAdapter.OnMovieAction
 
         Call<MovieResponse> call;
         if (selectedType.equals("movie")) {
+            // Tutaj było OK
             call = RetrofitClient.getTmdbService().discoverMovies(
                     Constants.TMDB_API_KEY, selectedGenreId, yearInt, null, selectedSort, "pl-PL", currentPage);
         } else {
+            // POPRAWKA: Dodałem parametr selectedSort (piąty argument)
             call = RetrofitClient.getTmdbService().discoverTv(
-                    Constants.TMDB_API_KEY, selectedGenreId, yearInt, "pl-PL", currentPage);
+                    Constants.TMDB_API_KEY, selectedGenreId, yearInt, "pl-PL", selectedSort, currentPage);
         }
 
         call.enqueue(new Callback<MovieResponse>() {
