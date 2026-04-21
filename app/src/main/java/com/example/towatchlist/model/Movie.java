@@ -1,5 +1,6 @@
 package com.example.towatchlist.model;
 
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import com.example.towatchlist.api.Constants;
@@ -31,9 +32,10 @@ public class Movie implements Serializable {
     @SerializedName("overview")
     private String plot;
 
-    private boolean isWatched = false;
-
+    @ColumnInfo(name = "streaming_platforms")
     private String streamingPlatforms;
+
+    private boolean isWatched = false;
 
     public Movie(int id, String title, String name, String posterPath, String releaseDate, double rating, String plot) {
         this.id = id;

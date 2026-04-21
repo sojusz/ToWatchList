@@ -24,7 +24,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHolder> {
-
+    private final java.util.concurrent.Executor executor = java.util.concurrent.Executors.newSingleThreadExecutor();
     private List<Movie> movies = new ArrayList<>();
     private Context context;
     private OnMovieActionListener listener;
@@ -121,47 +121,72 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     }
 
     private void loadPlatforms(Movie movie, MovieViewHolder holder) {
-        String movieId = String.valueOf(movie.getId());
+        if (movie.getStreamingPlatforms() != null && !movie.getStreamingPlatforms().isEmpty()) {
+            holder.txtPlatforms.setText(movie.getStreamingPlatforms());
+            return;
+        }
 
-        if (platformsCache.containsKey(movieId)) {
-            holder.txtPlatforms.setText(platformsCache.get(movieId));
+        String movieId = String.valueOf(movie.getId());
+        String prefix = (movie.getTitle() != null && !movie.getTitle().isEmpty()) ? "movie-" : "tv-";
+        String watchmodeId = prefix + movieId;
+
+        if (platformsCache.containsKey(watchmodeId)) {
+            String cachedText = platformsCache.get(watchmodeId);
+            movie.setStreamingPlatforms(cachedText);
+            holder.txtPlatforms.setText(cachedText);
             return;
         }
 
         holder.txtPlatforms.setText("📺 Ładowanie platform...");
 
-        RetrofitClient.getWatchmodeService().getSources(
-                "movie-" + movieId, Constants.WATCHMODE_API_KEY
-        ).enqueue(new Callback<List<WatchmodeSource>>() {
-            @Override
-            public void onResponse(Call<List<WatchmodeSource>> call, Response<List<WatchmodeSource>> response) {
-                String text;
-                if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
-                    StringBuilder sb = new StringBuilder("📺 ");
-                    List<String> names = new ArrayList<>();
-                    for (WatchmodeSource src : response.body()) {
-                        if (!names.contains(src.getName())) {
-                            names.add(src.getName());
+        RetrofitClient.getWatchmodeService().getSources(watchmodeId, Constants.WATCHMODE_API_KEY)
+                .enqueue(new Callback<List<WatchmodeSource>>() {
+                    @Override
+                    public void onResponse(Call<List<WatchmodeSource>> call, Response<List<WatchmodeSource>> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            String result = processWatchmodeSources(response.body());
+
+                            platformsCache.put(watchmodeId, result);
+                            movie.setStreamingPlatforms(result);
+
+                            if (isFromMyList) {
+                                executor.execute(() -> {
+                                    com.example.towatchlist.database.MovieDatabase.getDatabase(context)
+                                            .movieDao().insert(movie);
+                                });
+                            }
+
+                            if (holder.getAdapterPosition() != RecyclerView.NO_POSITION) {
+                                holder.txtPlatforms.setText(result);
+                            }
                         }
                     }
-                    for (int i = 0; i < names.size(); i++) {
-                        sb.append(names.get(i));
-                        if (i < names.size() - 1) sb.append(", ");
-                    }
-                    text = sb.toString();
-                } else {
-                    text = "📺 Brak informacji o platformach";
-                }
-                platformsCache.put(movieId, text);
-                movie.setStreamingPlatforms(text);
-                holder.txtPlatforms.setText(text);
-            }
 
-            @Override
-            public void onFailure(Call<List<WatchmodeSource>> call, Throwable t) {
-                holder.txtPlatforms.setText("📺 Błąd ładowania");
+                    @Override
+                    public void onFailure(Call<List<WatchmodeSource>> call, Throwable t) {
+                        holder.txtPlatforms.setText("📺 Błąd połączenia");
+                    }
+                });
+    }
+
+    private String processWatchmodeSources(List<WatchmodeSource> sources) {
+        List<String> names = new ArrayList<>();
+        for (WatchmodeSource src : sources) {
+            if ("sub".equals(src.getType())) {
+                if (!names.contains(src.getName())) {
+                    names.add(src.getName());
+                }
             }
-        });
+        }
+
+        if (names.isEmpty()) return "📺 Brak w subskrypcji";
+
+        StringBuilder sb = new StringBuilder("📺 ");
+        for (int i = 0; i < names.size(); i++) {
+            sb.append(names.get(i));
+            if (i < names.size() - 1) sb.append(", ");
+        }
+        return sb.toString();
     }
 
     @Override
